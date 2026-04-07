@@ -1,5 +1,5 @@
 import { Box, Typography } from "@mui/material";
-import { TopNav } from "../../src/components";
+import { TopNav } from "../components";
 
 export default function Dashboard() {
   return (

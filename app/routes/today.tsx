@@ -1,4 +1,4 @@
-import { Today } from "../../src/components";
+import { Today } from "../components";
 
 export default function TodayRoute() {
   return <Today />;

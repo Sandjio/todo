@@ -1,5 +1,5 @@
 import { Box } from "@mui/material";
-import { TopNav, NewTask } from "../../src/components";
+import { TopNav, NewTask } from "../components";
 
 export default function Home() {
   return (

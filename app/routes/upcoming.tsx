@@ -1,4 +1,4 @@
-import { Upcoming } from "../../src/components";
+import { Upcoming } from "../components";
 
 export default function UpcomingRoute() {
   return <Upcoming />;

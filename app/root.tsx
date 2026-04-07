@@ -1,13 +1,6 @@
-import {
-  Links,
-  Meta,
-  Outlet,
-  Scripts,
-  ScrollRestoration,
-} from "react-router";
+import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
 import { Box } from "@mui/material";
-import { SideBar } from "../src/components";
-import "../src/index.css";
+import { SideBar } from "./components";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
