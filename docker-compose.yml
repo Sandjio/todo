@@ -1,0 +1,9 @@
+services:
+  todo-app:
+    build:
+      context: .
+      args:
+        VITE_TODOIST_API_TOKEN: ${VITE_TODOIST_API_TOKEN}
+    ports:
+      - "3000:80"
+    restart: unless-stopped
