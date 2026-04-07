@@ -53,10 +53,11 @@ export async function clientAction({ request }: Route.ClientActionArgs) {
   return { ok: true };
 }
 
-
 export default function Dashboard({ loaderData }: Route.ComponentProps) {
   const filteredProject = loaderData.project_id
-    ? loaderData.projects.find((p: TodoistProject) => p.id === loaderData.project_id)
+    ? loaderData.projects.find(
+        (p: TodoistProject) => p.id === loaderData.project_id,
+      )
     : null;
 
   return (
