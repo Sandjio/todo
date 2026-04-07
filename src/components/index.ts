@@ -5,3 +5,5 @@ export { Projects } from "./Dashboard/Projects";
 export { Today } from "./Dashboard/Today";
 export { Trash } from "./Dashboard/Trash";
 export { Upcoming } from "./Dashboard/Upcoming";
+export { TopNav } from "./TopNav/TopNav";
+export { NewTask } from "./NewTask/NewTask";
