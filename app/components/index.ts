@@ -7,3 +7,6 @@ export { Trash } from "./Dashboard/Trash";
 export { Upcoming } from "./Dashboard/Upcoming";
 export { TopNav } from "./TopNav/TopNav";
 export { NewTask } from "./NewTask/NewTask";
+export { TaskList } from "./Dashboard/TaskList";
+export { EditTaskDialog } from "./Dashboard/EditTaskDialog";
+export { ConfirmDeleteDialog } from "./Dashboard/ConfirmDeleteDialog";

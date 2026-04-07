@@ -1,5 +1,5 @@
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
-import { Box } from "@mui/material";
+import { Box, CircularProgress } from "@mui/material";
 import { SideBar } from "./components";
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -13,12 +13,27 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Meta />
         <Links />
       </head>
-      <body>
+      <body style={{ margin: 0 }}>
         {children}
         <ScrollRestoration />
         <Scripts />
       </body>
     </html>
+  );
+}
+
+export function HydrateFallback() {
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        minHeight: "100vh",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <CircularProgress sx={{ color: "#3D52D5" }} />
+    </Box>
   );
 }
 

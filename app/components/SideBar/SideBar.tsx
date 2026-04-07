@@ -31,7 +31,6 @@ export const SideBar = () => {
         height: "100vh",
         bgcolor: "#F1F5F9",
         px: 2.5,
-        py: 3,
       }}
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
