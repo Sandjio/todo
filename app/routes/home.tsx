@@ -1,46 +1,20 @@
 import { Box } from "@mui/material";
-import { redirect } from "react-router";
+import { useNavigate } from "react-router";
 import { TopNav, NewTask } from "../components";
-import { createTask, listProjects } from "../utils/todoist.service";
-import { urgencyToPriority } from "../utils/urgency";
-import type { UrgencyLevel } from "../types/todoist";
-import type { Route } from "./+types/home";
+import { useProjects } from "../hooks/useProjects";
+import { useCreateTask } from "../hooks/useCreateTask";
+import type { CreateTaskPayload } from "../types/todoist";
 
-export async function clientLoader() {
-  const projects = await listProjects();
-  return { projects };
-}
+export default function Home() {
+  const { data: projects = [] } = useProjects();
+  const createTask = useCreateTask();
+  const navigate = useNavigate();
 
-export async function clientAction({ request }: Route.ClientActionArgs) {
-  const formData = await request.formData();
-  const content = formData.get("content") as string;
-  const description = (formData.get("description") as string) || "";
-  const due_date = (formData.get("due_date") as string) || undefined;
-  const project_id = (formData.get("project_id") as string) || undefined;
-  const urgency = (formData.get("urgency") as UrgencyLevel) || undefined;
-  const labels = formData.getAll("labels") as string[];
+  const handleSubmit = async (payload: CreateTaskPayload) => {
+    await createTask.mutateAsync(payload);
+    navigate("/dashboard");
+  };
 
-  if (!content?.trim()) {
-    return { error: "Task title is required." };
-  }
-
-  try {
-    await createTask({
-      content: content.trim(),
-      description,
-      due_date: due_date || undefined,
-      project_id: project_id || undefined,
-      priority: urgency ? urgencyToPriority(urgency) : 1,
-      labels: labels.length > 0 ? labels : undefined,
-    });
-    return redirect("/dashboard");
-  } catch {
-    return { error: "Failed to create task. Please try again." };
-  }
-}
-
-
-export default function Home({ loaderData }: Route.ComponentProps) {
   return (
     <Box
       sx={{
@@ -52,7 +26,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       }}
     >
       <TopNav />
-      <NewTask projects={loaderData.projects} />
+      <NewTask
+        projects={projects}
+        onSubmit={handleSubmit}
+        isSubmitting={createTask.isPending}
+        error={createTask.error}
+      />
     </Box>
   );
 }

@@ -1,57 +1,50 @@
-import { Box, Typography } from "@mui/material";
+import { useCallback } from "react";
+import { Box, CircularProgress, Typography } from "@mui/material";
 import { TopNav } from "../components";
 import { TaskList } from "../components/Dashboard/TaskList";
-import {
-  listTasks,
-  listProjects,
-  deleteTask,
-  updateTask,
-} from "../utils/todoist.service";
-import { urgencyToPriority } from "../utils/urgency";
-import type { UrgencyLevel } from "../types/todoist";
-import type { Route } from "./+types/today";
+import { useTasks } from "../hooks/useTasks";
+import { useProjects } from "../hooks/useProjects";
+import { useDeleteTask } from "../hooks/useDeleteTask";
+import { useUpdateTask } from "../hooks/useUpdateTask";
+import type { UpdateTaskPayload } from "../types/todoist";
 
-export async function clientLoader() {
-  const [tasks, projects] = await Promise.all([
-    listTasks({ filter: "today" }),
-    listProjects(),
-  ]);
-  return { tasks, projects };
-}
+export default function TodayRoute() {
+  const { data, isLoading } = useTasks({ filter: "today" });
+  const { data: projects = [] } = useProjects();
+  const deleteTask = useDeleteTask();
+  const updateTask = useUpdateTask();
 
-export async function clientAction({ request }: Route.ClientActionArgs) {
-  const formData = await request.formData();
-  const intent = formData.get("intent") as string;
+  const tasks = data?.results ?? [];
 
-  if (intent === "delete") {
-    const taskId = formData.get("taskId") as string;
-    await deleteTask(taskId);
-    return { ok: true };
+  const handleDelete = useCallback(
+    (taskId: string) => {
+      deleteTask.mutate(taskId);
+    },
+    [deleteTask],
+  );
+
+  const handleUpdate = useCallback(
+    (taskId: string, payload: UpdateTaskPayload) => {
+      updateTask.mutate({ taskId, payload });
+    },
+    [updateTask],
+  );
+
+  if (isLoading) {
+    return (
+      <Box
+        sx={{
+          flex: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <CircularProgress sx={{ color: "#3D52D5" }} />
+      </Box>
+    );
   }
 
-  if (intent === "update") {
-    const taskId = formData.get("taskId") as string;
-    const content = formData.get("content") as string;
-    const description = (formData.get("description") as string) || "";
-    const due_date = (formData.get("due_date") as string) || undefined;
-    const project_id = (formData.get("project_id") as string) || undefined;
-    const urgency = (formData.get("urgency") as UrgencyLevel) || undefined;
-
-    await updateTask(taskId, {
-      content,
-      description,
-      due_date: due_date || undefined,
-      project_id: project_id || undefined,
-      priority: urgency ? urgencyToPriority(urgency) : 1,
-    });
-    return { ok: true };
-  }
-
-  return { ok: true };
-}
-
-
-export default function TodayRoute({ loaderData }: Route.ComponentProps) {
   return (
     <Box
       sx={{
@@ -69,7 +62,15 @@ export default function TodayRoute({ loaderData }: Route.ComponentProps) {
       <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
         Tasks due today.
       </Typography>
-      <TaskList tasks={loaderData.tasks} projects={loaderData.projects} />
+      <TaskList
+        tasks={tasks}
+        projects={projects}
+        onDelete={handleDelete}
+        onUpdate={handleUpdate}
+        isDeletingId={
+          deleteTask.isPending ? (deleteTask.variables as string) : undefined
+        }
+      />
     </Box>
   );
 }

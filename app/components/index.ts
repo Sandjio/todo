@@ -1,10 +1,8 @@
 export { SideBar } from "./SideBar/SideBar";
+export { FilterBar } from "./FilterBar";
 export { Main } from "./Dashboard/Main";
 export { Archive } from "./Dashboard/Archive";
-export { Projects } from "./Dashboard/Projects";
-export { Today } from "./Dashboard/Today";
 export { Trash } from "./Dashboard/Trash";
-export { Upcoming } from "./Dashboard/Upcoming";
 export { TopNav } from "./TopNav/TopNav";
 export { NewTask } from "./NewTask/NewTask";
 export { TaskList } from "./Dashboard/TaskList";

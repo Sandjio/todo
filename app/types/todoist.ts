@@ -42,3 +42,8 @@ export interface CreateTaskPayload {
 export type UpdateTaskPayload = Partial<CreateTaskPayload>;
 
 export type UrgencyLevel = "LOW" | "MED" | "HIGH";
+
+export interface PaginatedResponse<T> {
+  results: T[];
+  next_cursor: string | null;
+}

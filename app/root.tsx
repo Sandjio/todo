@@ -1,6 +1,10 @@
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
+import { Suspense } from "react";
 import { Box, CircularProgress } from "@mui/material";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { SideBar } from "./components";
+import { queryClient } from "./lib/queryClient";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -37,11 +41,31 @@ export function HydrateFallback() {
   );
 }
 
+function RouteLoadingFallback() {
+  return (
+    <Box
+      sx={{
+        flex: 1,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <CircularProgress sx={{ color: "#3D52D5" }} />
+    </Box>
+  );
+}
+
 export default function Root() {
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh" }}>
-      <SideBar />
-      <Outlet />
-    </Box>
+    <QueryClientProvider client={queryClient}>
+      <Box sx={{ display: "flex", minHeight: "100vh" }}>
+        <SideBar />
+        <Suspense fallback={<RouteLoadingFallback />}>
+          <Outlet />
+        </Suspense>
+      </Box>
+      {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
+    </QueryClientProvider>
   );
 }

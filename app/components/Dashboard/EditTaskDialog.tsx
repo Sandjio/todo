@@ -11,13 +11,13 @@ import {
   Typography,
 } from "@mui/material";
 import { useState } from "react";
-import { useFetcher } from "react-router";
 import type {
   TodoistTask,
   TodoistProject,
   UrgencyLevel,
+  UpdateTaskPayload,
 } from "../../types/todoist";
-import { priorityToUrgency } from "../../utils/urgency";
+import { priorityToUrgency, urgencyToPriority } from "../../utils/urgency";
 
 const ACCENT = "#3D52D5";
 const urgencyLevels: UrgencyLevel[] = ["LOW", "MED", "HIGH"];
@@ -27,6 +27,8 @@ interface EditTaskDialogProps {
   task: TodoistTask | null;
   projects: TodoistProject[];
   onClose: () => void;
+  onUpdate: (taskId: string, payload: UpdateTaskPayload) => void;
+  isSubmitting?: boolean;
 }
 
 export const EditTaskDialog = ({
@@ -34,6 +36,8 @@ export const EditTaskDialog = ({
   task,
   projects,
   onClose,
+  onUpdate,
+  isSubmitting = false,
 }: EditTaskDialogProps) => {
   if (!task) return null;
 
@@ -47,6 +51,8 @@ export const EditTaskDialog = ({
           task={task}
           projects={projects}
           onClose={onClose}
+          onUpdate={onUpdate}
+          isSubmitting={isSubmitting}
         />
       </DialogContent>
     </Dialog>
@@ -57,35 +63,36 @@ function EditTaskForm({
   task,
   projects,
   onClose,
+  onUpdate,
+  isSubmitting,
 }: {
   task: TodoistTask;
   projects: TodoistProject[];
   onClose: () => void;
+  onUpdate: (taskId: string, payload: UpdateTaskPayload) => void;
+  isSubmitting: boolean;
 }) {
-  const fetcher = useFetcher();
   const [urgency, setUrgency] = useState<UrgencyLevel>(
     priorityToUrgency(task.priority),
   );
   const [projectId, setProjectId] = useState(task.project_id);
 
-  const isSubmitting = fetcher.state !== "idle";
-  const isDone = fetcher.state === "idle" && fetcher.data;
-
-  if (isDone) {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    onUpdate(task.id, {
+      content: fd.get("content") as string,
+      description: (fd.get("description") as string) || "",
+      due_date: (fd.get("due_date") as string) || undefined,
+      project_id: projectId || undefined,
+      priority: urgencyToPriority(urgency),
+    });
     onClose();
-  }
+  };
 
   return (
-    <fetcher.Form method="post">
-      <input type="hidden" name="intent" value="update" />
-      <input type="hidden" name="taskId" value={task.id} />
-      <input type="hidden" name="urgency" value={urgency} />
-      <input type="hidden" name="project_id" value={projectId} />
-
-      <Box
-        sx={{ display: "flex", flexDirection: "column", gap: 2.5, mt: 1 }}
-      >
-        {/* Task Title */}
+    <form onSubmit={handleSubmit}>
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5, mt: 1 }}>
         <Box>
           <Typography
             variant="overline"
@@ -109,7 +116,6 @@ function EditTaskForm({
           />
         </Box>
 
-        {/* Description */}
         <Box>
           <Typography
             variant="overline"
@@ -134,15 +140,10 @@ function EditTaskForm({
           />
         </Box>
 
-        {/* Due Date */}
         <Box>
           <Typography
             variant="overline"
-            sx={{
-              color: "text.disabled",
-              fontWeight: 700,
-              letterSpacing: 1,
-            }}
+            sx={{ color: "text.disabled", fontWeight: 700, letterSpacing: 1 }}
           >
             Due Date
           </Typography>
@@ -162,15 +163,10 @@ function EditTaskForm({
           />
         </Box>
 
-        {/* Project */}
         <Box>
           <Typography
             variant="overline"
-            sx={{
-              color: "text.disabled",
-              fontWeight: 700,
-              letterSpacing: 1,
-            }}
+            sx={{ color: "text.disabled", fontWeight: 700, letterSpacing: 1 }}
           >
             Project
           </Typography>
@@ -199,15 +195,10 @@ function EditTaskForm({
           </Select>
         </Box>
 
-        {/* Urgency Level */}
         <Box>
           <Typography
             variant="overline"
-            sx={{
-              color: "text.disabled",
-              fontWeight: 700,
-              letterSpacing: 1,
-            }}
+            sx={{ color: "text.disabled", fontWeight: 700, letterSpacing: 1 }}
           >
             Urgency Level
           </Typography>
@@ -230,9 +221,7 @@ function EditTaskForm({
                     py: 0.75,
                     bgcolor: active ? ACCENT : "transparent",
                     color: active ? "#fff" : "text.secondary",
-                    "&:hover": {
-                      bgcolor: active ? ACCENT : "grey.100",
-                    },
+                    "&:hover": { bgcolor: active ? ACCENT : "grey.100" },
                     boxShadow: "none",
                   }}
                 >
@@ -243,7 +232,6 @@ function EditTaskForm({
           </Box>
         </Box>
 
-        {/* Actions */}
         <Box
           sx={{ display: "flex", justifyContent: "flex-end", gap: 1.5, mt: 1 }}
         >
@@ -271,6 +259,6 @@ function EditTaskForm({
           </Button>
         </Box>
       </Box>
-    </fetcher.Form>
+    </form>
   );
 }

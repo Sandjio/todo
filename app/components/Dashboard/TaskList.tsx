@@ -1,15 +1,14 @@
-import {
-  Box,
-  Chip,
-  IconButton,
-  Typography,
-} from "@mui/material";
+import React, { useState, useMemo } from "react";
+import { Box, Chip, IconButton, Typography } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
-import { useState } from "react";
-import { Link, useFetcher } from "react-router";
-import type { TodoistTask, TodoistProject } from "../../types/todoist";
+import { Link } from "react-router";
+import type {
+  TodoistTask,
+  TodoistProject,
+  UpdateTaskPayload,
+} from "../../types/todoist";
 import { priorityToUrgency } from "../../utils/urgency";
 import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
 import { EditTaskDialog } from "./EditTaskDialog";
@@ -33,22 +32,150 @@ const priorityColors: Record<string, string> = {
 interface TaskListProps {
   tasks: TodoistTask[];
   projects: TodoistProject[];
+  onDelete: (taskId: string) => void;
+  onUpdate: (taskId: string, payload: UpdateTaskPayload) => void;
+  isDeletingId?: string;
 }
 
-export const TaskList = ({ tasks, projects }: TaskListProps) => {
-  const fetcher = useFetcher();
+interface TaskCardProps {
+  task: TodoistTask;
+  projectName: string | undefined;
+  onEdit: () => void;
+  onDelete: () => void;
+  isDeleting: boolean;
+}
+
+const TaskCard = React.memo(function TaskCard({
+  task,
+  projectName,
+  onEdit,
+  onDelete,
+  isDeleting,
+}: TaskCardProps) {
+  const urgency = priorityToUrgency(task.priority);
+
+  return (
+    <Box
+      sx={{
+        ...card,
+        display: "flex",
+        alignItems: "center",
+        gap: 2,
+        transition: "box-shadow 0.2s",
+        "&:hover": { boxShadow: "0 2px 12px rgba(61,82,213,0.1)" },
+      }}
+    >
+      <Box
+        sx={{
+          width: 4,
+          height: 48,
+          borderRadius: 2,
+          bgcolor: priorityColors[urgency] ?? "#bdbdbd",
+          flexShrink: 0,
+        }}
+      />
+
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
+          <Link
+            to={`/tasks/${task.id}`}
+            style={{ textDecoration: "none", color: "inherit" }}
+          >
+            <Typography variant="body1" fontWeight={600} noWrap>
+              {task.content}
+            </Typography>
+          </Link>
+          <Chip
+            label={urgency}
+            size="small"
+            sx={{
+              fontSize: "0.65rem",
+              fontWeight: 700,
+              height: 20,
+              bgcolor: priorityColors[urgency] ?? "#bdbdbd",
+              color: "#fff",
+            }}
+          />
+        </Box>
+
+        {task.description && (
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            noWrap
+            sx={{ maxWidth: 500 }}
+          >
+            {task.description}
+          </Typography>
+        )}
+
+        <Box
+          sx={{ display: "flex", alignItems: "center", gap: 2, mt: 0.5 }}
+        >
+          {task.due && (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+              <CalendarTodayIcon sx={{ fontSize: 14, color: "text.disabled" }} />
+              <Typography variant="caption" color="text.secondary">
+                {task.due.date}
+              </Typography>
+            </Box>
+          )}
+          {projectName && (
+            <Typography variant="caption" color="text.disabled">
+              {projectName}
+            </Typography>
+          )}
+          {task.labels.map((label) => (
+            <Chip
+              key={label}
+              label={label}
+              size="small"
+              variant="outlined"
+              sx={{ fontSize: "0.65rem", height: 18, borderColor: "grey.300" }}
+            />
+          ))}
+        </Box>
+      </Box>
+
+      <Box sx={{ display: "flex", gap: 0.5, flexShrink: 0 }}>
+        <IconButton
+          size="small"
+          onClick={onEdit}
+          sx={{ color: "text.secondary", "&:hover": { color: ACCENT } }}
+        >
+          <EditIcon fontSize="small" />
+        </IconButton>
+        <IconButton
+          size="small"
+          onClick={onDelete}
+          disabled={isDeleting}
+          sx={{ color: "text.secondary", "&:hover": { color: "error.main" } }}
+        >
+          <DeleteIcon fontSize="small" />
+        </IconButton>
+      </Box>
+    </Box>
+  );
+});
+
+export const TaskList = React.memo(function TaskList({
+  tasks,
+  projects,
+  onDelete,
+  onUpdate,
+  isDeletingId,
+}: TaskListProps) {
   const [deleteTarget, setDeleteTarget] = useState<TodoistTask | null>(null);
   const [editTarget, setEditTarget] = useState<TodoistTask | null>(null);
 
-  const projectMap = new Map(projects.map((p) => [p.id, p.name]));
-  const isDeleting = fetcher.state !== "idle";
+  const projectMap = useMemo(
+    () => new Map(projects.map((p) => [p.id, p.name])),
+    [projects],
+  );
 
-  const handleDelete = () => {
+  const handleConfirmDelete = () => {
     if (!deleteTarget) return;
-    fetcher.submit(
-      { intent: "delete", taskId: deleteTarget.id },
-      { method: "post" },
-    );
+    onDelete(deleteTarget.id);
     setDeleteTarget(null);
   };
 
@@ -63,11 +190,7 @@ export const TaskList = ({ tasks, projects }: TaskListProps) => {
         </Typography>
         <Link
           to="/"
-          style={{
-            color: ACCENT,
-            fontWeight: 600,
-            textDecoration: "none",
-          }}
+          style={{ color: ACCENT, fontWeight: 600, textDecoration: "none" }}
         >
           + Create Task
         </Link>
@@ -78,151 +201,23 @@ export const TaskList = ({ tasks, projects }: TaskListProps) => {
   return (
     <>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 3 }}>
-        {tasks.map((task) => {
-          const urgency = priorityToUrgency(task.priority);
-          return (
-            <Box
-              key={task.id}
-              sx={{
-                ...card,
-                display: "flex",
-                alignItems: "center",
-                gap: 2,
-                transition: "box-shadow 0.2s",
-                "&:hover": {
-                  boxShadow: "0 2px 12px rgba(61,82,213,0.1)",
-                },
-              }}
-            >
-              {/* Priority indicator */}
-              <Box
-                sx={{
-                  width: 4,
-                  height: 48,
-                  borderRadius: 2,
-                  bgcolor: priorityColors[urgency] ?? "#bdbdbd",
-                  flexShrink: 0,
-                }}
-              />
-
-              {/* Content */}
-              <Box sx={{ flex: 1, minWidth: 0 }}>
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1,
-                    mb: 0.5,
-                  }}
-                >
-                  <Link
-                    to={`/tasks/${task.id}`}
-                    style={{ textDecoration: "none", color: "inherit" }}
-                  >
-                    <Typography variant="body1" fontWeight={600} noWrap>
-                      {task.content}
-                    </Typography>
-                  </Link>
-                  <Chip
-                    label={urgency}
-                    size="small"
-                    sx={{
-                      fontSize: "0.65rem",
-                      fontWeight: 700,
-                      height: 20,
-                      bgcolor: priorityColors[urgency] ?? "#bdbdbd",
-                      color: "#fff",
-                    }}
-                  />
-                </Box>
-
-                {task.description && (
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    noWrap
-                    sx={{ maxWidth: 500 }}
-                  >
-                    {task.description}
-                  </Typography>
-                )}
-
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 2,
-                    mt: 0.5,
-                  }}
-                >
-                  {task.due && (
-                    <Box
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 0.5,
-                      }}
-                    >
-                      <CalendarTodayIcon
-                        sx={{ fontSize: 14, color: "text.disabled" }}
-                      />
-                      <Typography variant="caption" color="text.secondary">
-                        {task.due.date}
-                      </Typography>
-                    </Box>
-                  )}
-                  {projectMap.get(task.project_id) && (
-                    <Typography variant="caption" color="text.disabled">
-                      {projectMap.get(task.project_id)}
-                    </Typography>
-                  )}
-                  {task.labels.map((label) => (
-                    <Chip
-                      key={label}
-                      label={label}
-                      size="small"
-                      variant="outlined"
-                      sx={{
-                        fontSize: "0.65rem",
-                        height: 18,
-                        borderColor: "grey.300",
-                      }}
-                    />
-                  ))}
-                </Box>
-              </Box>
-
-              {/* Actions */}
-              <Box sx={{ display: "flex", gap: 0.5, flexShrink: 0 }}>
-                <IconButton
-                  size="small"
-                  onClick={() => setEditTarget(task)}
-                  sx={{ color: "text.secondary", "&:hover": { color: ACCENT } }}
-                >
-                  <EditIcon fontSize="small" />
-                </IconButton>
-                <IconButton
-                  size="small"
-                  onClick={() => setDeleteTarget(task)}
-                  disabled={isDeleting}
-                  sx={{
-                    color: "text.secondary",
-                    "&:hover": { color: "error.main" },
-                  }}
-                >
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
-              </Box>
-            </Box>
-          );
-        })}
+        {tasks.map((task) => (
+          <TaskCard
+            key={task.id}
+            task={task}
+            projectName={projectMap.get(task.project_id)}
+            onEdit={() => setEditTarget(task)}
+            onDelete={() => setDeleteTarget(task)}
+            isDeleting={isDeletingId === task.id}
+          />
+        ))}
       </Box>
 
       <ConfirmDeleteDialog
         open={!!deleteTarget}
         taskContent={deleteTarget?.content ?? ""}
-        loading={isDeleting}
-        onConfirm={handleDelete}
+        loading={!!isDeletingId}
+        onConfirm={handleConfirmDelete}
         onCancel={() => setDeleteTarget(null)}
       />
 
@@ -231,7 +226,8 @@ export const TaskList = ({ tasks, projects }: TaskListProps) => {
         task={editTarget}
         projects={projects}
         onClose={() => setEditTarget(null)}
+        onUpdate={onUpdate}
       />
     </>
   );
-};
+});

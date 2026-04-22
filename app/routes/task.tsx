@@ -1,27 +1,19 @@
-import {
-  Box,
-  Button,
-  Chip,
-  Typography,
-} from "@mui/material";
+import { useCallback, useState } from "react";
+import { Box, Button, Chip, CircularProgress, Typography } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import { useState } from "react";
-import { Link, redirect, useFetcher } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import { TopNav } from "../components";
 import { EditTaskDialog } from "../components/Dashboard/EditTaskDialog";
 import { ConfirmDeleteDialog } from "../components/Dashboard/ConfirmDeleteDialog";
-import {
-  getTask,
-  listProjects,
-  deleteTask,
-  updateTask,
-} from "../utils/todoist.service";
-import { urgencyToPriority, priorityToUrgency } from "../utils/urgency";
-import type { UrgencyLevel, TodoistProject } from "../types/todoist";
-import type { Route } from "./+types/task";
+import { useTask } from "../hooks/useTask";
+import { useProjects } from "../hooks/useProjects";
+import { useDeleteTask } from "../hooks/useDeleteTask";
+import { useUpdateTask } from "../hooks/useUpdateTask";
+import { priorityToUrgency } from "../utils/urgency";
+import type { UpdateTaskPayload } from "../types/todoist";
 
 const ACCENT = "#3D52D5";
 
@@ -31,60 +23,62 @@ const priorityColors: Record<string, string> = {
   LOW: "#43A047",
 };
 
-export async function clientLoader({ params }: Route.ClientLoaderArgs) {
-  const [task, projects] = await Promise.all([
-    getTask(params.taskId),
-    listProjects(),
-  ]);
-  return { task, projects };
-}
-
-export async function clientAction({ request, params }: Route.ClientActionArgs) {
-  const formData = await request.formData();
-  const intent = formData.get("intent") as string;
-
-  if (intent === "delete") {
-    await deleteTask(params.taskId);
-    return redirect("/dashboard");
-  }
-
-  if (intent === "update") {
-    const content = formData.get("content") as string;
-    const description = (formData.get("description") as string) || "";
-    const due_date = (formData.get("due_date") as string) || undefined;
-    const project_id = (formData.get("project_id") as string) || undefined;
-    const urgency = (formData.get("urgency") as UrgencyLevel) || undefined;
-
-    await updateTask(params.taskId, {
-      content,
-      description,
-      due_date: due_date || undefined,
-      project_id: project_id || undefined,
-      priority: urgency ? urgencyToPriority(urgency) : 1,
-    });
-    return { ok: true };
-  }
-
-  return { ok: true };
-}
-
-
-export default function TaskView({ loaderData }: Route.ComponentProps) {
-  const { task, projects } = loaderData;
-  const fetcher = useFetcher();
+export default function TaskView() {
+  const { taskId } = useParams<{ taskId: string }>();
+  const navigate = useNavigate();
   const [showEdit, setShowEdit] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
 
-  const urgency = priorityToUrgency(task.priority);
-  const projectName = projects.find((p: TodoistProject) => p.id === task.project_id)?.name;
-  const isDeleting = fetcher.state !== "idle";
+  const { data: task, isLoading, isError } = useTask(taskId!);
+  const { data: projects = [] } = useProjects();
+  const deleteTask = useDeleteTask();
+  const updateTask = useUpdateTask();
 
-  const handleDelete = () => {
-    fetcher.submit(
-      { intent: "delete", taskId: task.id },
-      { method: "post" },
+  const handleDelete = useCallback(() => {
+    deleteTask.mutate(taskId!, {
+      onSuccess: () => navigate("/dashboard"),
+    });
+  }, [deleteTask, taskId, navigate]);
+
+  const handleUpdate = useCallback(
+    (id: string, payload: UpdateTaskPayload) => {
+      updateTask.mutate({ taskId: id, payload }, { onSuccess: () => setShowEdit(false) });
+    },
+    [updateTask],
+  );
+
+  if (isLoading) {
+    return (
+      <Box
+        sx={{
+          flex: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <CircularProgress sx={{ color: "#3D52D5" }} />
+      </Box>
     );
-  };
+  }
+
+  if (isError || !task) {
+    return (
+      <Box
+        sx={{
+          flex: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Typography color="error">Task not found.</Typography>
+      </Box>
+    );
+  }
+
+  const urgency = priorityToUrgency(task.priority);
+  const projectName = projects.find((p) => p.id === task.project_id)?.name;
 
   return (
     <Box
@@ -98,7 +92,6 @@ export default function TaskView({ loaderData }: Route.ComponentProps) {
     >
       <TopNav />
 
-      {/* Back link */}
       <Link
         to="/dashboard"
         style={{
@@ -114,7 +107,6 @@ export default function TaskView({ loaderData }: Route.ComponentProps) {
         <Typography variant="body2">Back to Dashboard</Typography>
       </Link>
 
-      {/* Task detail card */}
       <Box
         sx={{
           bgcolor: "#fff",
@@ -124,7 +116,6 @@ export default function TaskView({ loaderData }: Route.ComponentProps) {
           p: 4,
         }}
       >
-        {/* Header */}
         <Box
           sx={{
             display: "flex",
@@ -134,7 +125,9 @@ export default function TaskView({ loaderData }: Route.ComponentProps) {
           }}
         >
           <Box>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1 }}>
+            <Box
+              sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1 }}
+            >
               <Typography variant="h5" fontWeight={800}>
                 {task.content}
               </Typography>
@@ -161,11 +154,7 @@ export default function TaskView({ loaderData }: Route.ComponentProps) {
               size="small"
               startIcon={<EditIcon />}
               onClick={() => setShowEdit(true)}
-              sx={{
-                color: ACCENT,
-                textTransform: "none",
-                fontWeight: 600,
-              }}
+              sx={{ color: ACCENT, textTransform: "none", fontWeight: 600 }}
             >
               Edit
             </Button>
@@ -181,7 +170,6 @@ export default function TaskView({ loaderData }: Route.ComponentProps) {
           </Box>
         </Box>
 
-        {/* Description */}
         {task.description && (
           <Box sx={{ mb: 3 }}>
             <Typography
@@ -200,22 +188,21 @@ export default function TaskView({ loaderData }: Route.ComponentProps) {
           </Box>
         )}
 
-        {/* Meta info */}
         <Box sx={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
           {task.due && (
             <Box>
               <Typography
                 variant="overline"
-                sx={{
-                  color: "text.disabled",
-                  fontWeight: 700,
-                  letterSpacing: 1,
-                }}
+                sx={{ color: "text.disabled", fontWeight: 700, letterSpacing: 1 }}
               >
                 Due Date
               </Typography>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.5 }}>
-                <CalendarTodayIcon sx={{ fontSize: 16, color: "text.secondary" }} />
+              <Box
+                sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.5 }}
+              >
+                <CalendarTodayIcon
+                  sx={{ fontSize: 16, color: "text.secondary" }}
+                />
                 <Typography variant="body2" fontWeight={600}>
                   {task.due.date}
                 </Typography>
@@ -226,11 +213,7 @@ export default function TaskView({ loaderData }: Route.ComponentProps) {
           <Box>
             <Typography
               variant="overline"
-              sx={{
-                color: "text.disabled",
-                fontWeight: 700,
-                letterSpacing: 1,
-              }}
+              sx={{ color: "text.disabled", fontWeight: 700, letterSpacing: 1 }}
             >
               Created
             </Typography>
@@ -243,16 +226,12 @@ export default function TaskView({ loaderData }: Route.ComponentProps) {
             <Box>
               <Typography
                 variant="overline"
-                sx={{
-                  color: "text.disabled",
-                  fontWeight: 700,
-                  letterSpacing: 1,
-                }}
+                sx={{ color: "text.disabled", fontWeight: 700, letterSpacing: 1 }}
               >
                 Labels
               </Typography>
               <Box sx={{ display: "flex", gap: 0.5, mt: 0.5 }}>
-                {task.labels.map((label: string) => (
+                {task.labels.map((label) => (
                   <Chip
                     key={label}
                     label={label}
@@ -272,12 +251,14 @@ export default function TaskView({ loaderData }: Route.ComponentProps) {
         task={task}
         projects={projects}
         onClose={() => setShowEdit(false)}
+        onUpdate={handleUpdate}
+        isSubmitting={updateTask.isPending}
       />
 
       <ConfirmDeleteDialog
         open={showDelete}
         taskContent={task.content}
-        loading={isDeleting}
+        loading={deleteTask.isPending}
         onConfirm={handleDelete}
         onCancel={() => setShowDelete(false)}
       />

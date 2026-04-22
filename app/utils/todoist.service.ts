@@ -4,18 +4,18 @@ import type {
   TodoistProject,
   CreateTaskPayload,
   UpdateTaskPayload,
+  PaginatedResponse,
 } from "../types/todoist";
 
-interface PaginatedResponse<T> {
-  results: T[];
-  next_cursor: string | null;
-}
-
 export async function listTasks(
-  params?: { project_id?: string; filter?: string },
-): Promise<TodoistTask[]> {
-  const { data } = await todoistApi.get<PaginatedResponse<TodoistTask>>("/tasks", { params });
-  return data.results;
+  params?: { project_id?: string; filter?: string; cursor?: string },
+): Promise<PaginatedResponse<TodoistTask>> {
+  const { cursor, ...rest } = params ?? {};
+  const { data } = await todoistApi.get<PaginatedResponse<TodoistTask>>(
+    "/tasks",
+    { params: { ...rest, ...(cursor ? { cursor } : {}) } },
+  );
+  return data;
 }
 
 export async function getTask(taskId: string): Promise<TodoistTask> {
@@ -46,6 +46,7 @@ export async function deleteTask(taskId: string): Promise<void> {
 }
 
 export async function listProjects(): Promise<TodoistProject[]> {
-  const { data } = await todoistApi.get<PaginatedResponse<TodoistProject>>("/projects");
+  const { data } =
+    await todoistApi.get<PaginatedResponse<TodoistProject>>("/projects");
   return data.results;
 }

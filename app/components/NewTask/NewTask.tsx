@@ -19,8 +19,8 @@ import LinkIcon from "@mui/icons-material/Link";
 import AttachFileIcon from "@mui/icons-material/AttachFile";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import { useState } from "react";
-import { Form, useNavigation, useActionData } from "react-router";
-import type { TodoistProject, UrgencyLevel } from "../../types/todoist";
+import type { TodoistProject, UrgencyLevel, CreateTaskPayload } from "../../types/todoist";
+import { urgencyToPriority } from "../../utils/urgency";
 
 const ACCENT = "#3D52D5";
 
@@ -37,15 +37,20 @@ const card = {
 
 interface NewTaskProps {
   projects: TodoistProject[];
+  onSubmit: (payload: CreateTaskPayload) => void;
+  isSubmitting?: boolean;
+  error?: Error | null;
 }
 
-export const NewTask = ({ projects }: NewTaskProps) => {
+export const NewTask = ({
+  projects,
+  onSubmit,
+  isSubmitting = false,
+  error = null,
+}: NewTaskProps) => {
   const [urgency, setUrgency] = useState<UrgencyLevel>("HIGH");
   const [projectId, setProjectId] = useState("");
   const [labels, setLabels] = useState<string[]>([]);
-  const navigation = useNavigation();
-  const actionData = useActionData<{ error?: string }>();
-  const isSubmitting = navigation.state === "submitting";
 
   const toggleLabel = (label: string) => {
     setLabels((prev) =>
@@ -53,11 +58,27 @@ export const NewTask = ({ projects }: NewTaskProps) => {
     );
   };
 
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const content = (fd.get("content") as string)?.trim();
+    if (!content) return;
+
+    onSubmit({
+      content,
+      description: (fd.get("description") as string) || undefined,
+      due_date: (fd.get("due_date") as string) || undefined,
+      project_id: projectId || undefined,
+      priority: urgencyToPriority(urgency),
+      labels: labels.length > 0 ? labels : undefined,
+    });
+  };
+
   return (
-    <Form method="post">
-      {actionData?.error && (
+    <form onSubmit={handleSubmit}>
+      {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
-          {actionData.error}
+          {error.message ?? "Failed to create task. Please try again."}
         </Alert>
       )}
 
@@ -77,7 +98,6 @@ export const NewTask = ({ projects }: NewTaskProps) => {
 
           {/* Task Title + Notes card */}
           <Box sx={card}>
-            {/* Task Title */}
             <Typography
               variant="overline"
               sx={{ color: ACCENT, fontWeight: 700, letterSpacing: 1 }}
@@ -89,17 +109,11 @@ export const NewTask = ({ projects }: NewTaskProps) => {
               fullWidth
               placeholder="What needs to be done?"
               required
-              sx={{
-                mt: 0.5,
-                mb: 1.5,
-                fontSize: "1rem",
-                color: "text.secondary",
-              }}
+              sx={{ mt: 0.5, mb: 1.5, fontSize: "1rem", color: "text.secondary" }}
             />
 
             <Divider sx={{ mb: 2 }} />
 
-            {/* Notes & Context */}
             <Typography
               variant="overline"
               sx={{ color: ACCENT, fontWeight: 700, letterSpacing: 1 }}
@@ -107,15 +121,8 @@ export const NewTask = ({ projects }: NewTaskProps) => {
               Notes &amp; Context
             </Typography>
 
-            {/* Rich-text toolbar */}
             <Box
-              sx={{
-                display: "flex",
-                gap: 0.5,
-                mt: 1,
-                mb: 1,
-                color: "text.secondary",
-              }}
+              sx={{ display: "flex", gap: 0.5, mt: 1, mb: 1, color: "text.secondary" }}
             >
               {[
                 FormatBoldIcon,
@@ -147,12 +154,7 @@ export const NewTask = ({ projects }: NewTaskProps) => {
 
           {/* Suggested labels */}
           <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
-              flexWrap: "wrap",
-            }}
+            sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}
           >
             <Typography
               variant="caption"
@@ -199,24 +201,14 @@ export const NewTask = ({ projects }: NewTaskProps) => {
           <Box sx={card}>
             <Typography
               variant="overline"
-              sx={{
-                color: "text.disabled",
-                fontWeight: 700,
-                letterSpacing: 1,
-              }}
+              sx={{ color: "text.disabled", fontWeight: 700, letterSpacing: 1 }}
             >
               Timeline
             </Typography>
 
             <Box
-              sx={{
-                mt: 1.5,
-                display: "flex",
-                flexDirection: "column",
-                gap: 1.5,
-              }}
+              sx={{ mt: 1.5, display: "flex", flexDirection: "column", gap: 1.5 }}
             >
-              {/* Due Date */}
               <Box
                 sx={{
                   display: "flex",
@@ -231,11 +223,7 @@ export const NewTask = ({ projects }: NewTaskProps) => {
                 <Box sx={{ flex: 1 }}>
                   <Typography
                     variant="caption"
-                    sx={{
-                      color: "text.disabled",
-                      fontWeight: 600,
-                      letterSpacing: 0.5,
-                    }}
+                    sx={{ color: "text.disabled", fontWeight: 600, letterSpacing: 0.5 }}
                   >
                     DUE DATE
                   </Typography>
@@ -243,11 +231,7 @@ export const NewTask = ({ projects }: NewTaskProps) => {
                     name="due_date"
                     type="date"
                     fullWidth
-                    sx={{
-                      fontSize: "0.875rem",
-                      fontWeight: 600,
-                      "& input": { p: 0 },
-                    }}
+                    sx={{ fontSize: "0.875rem", fontWeight: 600, "& input": { p: 0 } }}
                   />
                 </Box>
                 <CalendarTodayIcon
@@ -262,11 +246,7 @@ export const NewTask = ({ projects }: NewTaskProps) => {
           <Box sx={card}>
             <Typography
               variant="overline"
-              sx={{
-                color: "text.disabled",
-                fontWeight: 700,
-                letterSpacing: 1,
-              }}
+              sx={{ color: "text.disabled", fontWeight: 700, letterSpacing: 1 }}
             >
               Project Anchor
             </Typography>
@@ -299,11 +279,7 @@ export const NewTask = ({ projects }: NewTaskProps) => {
           <Box sx={card}>
             <Typography
               variant="overline"
-              sx={{
-                color: "text.disabled",
-                fontWeight: 700,
-                letterSpacing: 1,
-              }}
+              sx={{ color: "text.disabled", fontWeight: 700, letterSpacing: 1 }}
             >
               Urgency Level
             </Typography>
@@ -326,9 +302,7 @@ export const NewTask = ({ projects }: NewTaskProps) => {
                       py: 0.75,
                       bgcolor: active ? ACCENT : "transparent",
                       color: active ? "#fff" : "text.secondary",
-                      "&:hover": {
-                        bgcolor: active ? ACCENT : "grey.100",
-                      },
+                      "&:hover": { bgcolor: active ? ACCENT : "grey.100" },
                       boxShadow: "none",
                     }}
                   >
@@ -338,13 +312,6 @@ export const NewTask = ({ projects }: NewTaskProps) => {
               })}
             </Box>
           </Box>
-
-          {/* Hidden inputs for non-standard form controls */}
-          <input type="hidden" name="urgency" value={urgency} />
-          <input type="hidden" name="project_id" value={projectId} />
-          {labels.map((label) => (
-            <input key={label} type="hidden" name="labels" value={label} />
-          ))}
 
           {/* Deploy Task button */}
           <Button
@@ -374,14 +341,7 @@ export const NewTask = ({ projects }: NewTaskProps) => {
           </Button>
 
           {/* Workspace Insight */}
-          <Box
-            sx={{
-              bgcolor: "#1A1F4E",
-              borderRadius: 3,
-              p: 2,
-              mt: 0.5,
-            }}
-          >
+          <Box sx={{ bgcolor: "#1A1F4E", borderRadius: 3, p: 2, mt: 0.5 }}>
             <Typography
               variant="overline"
               sx={{
@@ -403,6 +363,6 @@ export const NewTask = ({ projects }: NewTaskProps) => {
           </Box>
         </Box>
       </Box>
-    </Form>
+    </form>
   );
 };

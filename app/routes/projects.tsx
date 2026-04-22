@@ -1,21 +1,29 @@
-import { Box, Typography } from "@mui/material";
+import { Box, CircularProgress, Typography } from "@mui/material";
 import FolderIcon from "@mui/icons-material/Folder";
 import { Link } from "react-router";
 import { TopNav } from "../components";
-import { listProjects } from "../utils/todoist.service";
+import { useProjects } from "../hooks/useProjects";
 import type { TodoistProject } from "../types/todoist";
-import type { Route } from "./+types/projects";
 
 const ACCENT = "#3D52D5";
 
-export async function clientLoader() {
-  const projects = await listProjects();
-  return { projects };
-}
+export default function ProjectsRoute() {
+  const { data: projects = [], isLoading } = useProjects();
 
-
-export default function ProjectsRoute({ loaderData }: Route.ComponentProps) {
-  const { projects } = loaderData;
+  if (isLoading) {
+    return (
+      <Box
+        sx={{
+          flex: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <CircularProgress sx={{ color: "#3D52D5" }} />
+      </Box>
+    );
+  }
 
   return (
     <Box
@@ -38,11 +46,7 @@ export default function ProjectsRoute({ loaderData }: Route.ComponentProps) {
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: {
-            xs: "1fr",
-            sm: "1fr 1fr",
-            md: "1fr 1fr 1fr",
-          },
+          gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "1fr 1fr 1fr" },
           gap: 2,
           mt: 3,
         }}
@@ -72,7 +76,11 @@ export default function ProjectsRoute({ loaderData }: Route.ComponentProps) {
             >
               <FolderIcon sx={{ color: ACCENT }} />
               <Box>
-                <Typography variant="body1" fontWeight={600} color="text.primary">
+                <Typography
+                  variant="body1"
+                  fontWeight={600}
+                  color="text.primary"
+                >
                   {project.name}
                 </Typography>
                 {project.is_favorite && (

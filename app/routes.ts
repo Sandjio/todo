@@ -9,4 +9,5 @@ export default [
   route("projects", "./routes/projects.tsx"),
   route("archive", "./routes/archive.tsx"),
   route("trash", "./routes/trash.tsx"),
+  route("/admin/*", "routes/admin.tsx"),
 ] satisfies RouteConfig;
